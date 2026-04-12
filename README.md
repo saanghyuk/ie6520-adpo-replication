@@ -56,13 +56,58 @@ The gap becomes obvious. DPO plateaus around 86 %, ADPO keeps climbing to ~91 %,
 
 DPO saturates completely at ~87 % — no amount of extra queries moves it, because the oracle labels are noisy and DPO has no mechanism to denoise them. ADPO reaches ~94 %, a persistent ~7 pp gap. This is the clearest confirmation of the paper's mechanism on our benchmark: under a noisy oracle, ADPO's confident pseudo-labels bypass the noise ceiling that DPO hits.
 
+## Additional benchmarks — does the claim hold, and where does it break?
+
+To avoid cherry-picking the synthetic BT toy, we re-ran ADPO on three more settings. The goal was explicitly to **find regimes where ADPO stops winning**, because if the claim only survives one hand-tuned setup it isn't worth much.
+
+Scripts live in `benchmarks/`.
+
+### Benchmark 1 — γ sensitivity sweep
+
+Same BT toy as above, but we sweep γ ∈ {0.1, 0.3, 0.6, 1.0, 1.3, 2.0, 3.0} and report the final test accuracy at query budget k = 300, compared against the DPO baseline (86.3 %).
+
+![γ sweep](benchmarks/bench_gamma_sweep.png)
+
+There is a narrow sweet spot around γ ≈ 0.6–1.3 where ADPO beats DPO by 4–5 pp. Outside that band the story collapses — most strikingly, **at γ = 0.1 ADPO drops to ~66 %, a full 20 pp *below* DPO**. Pseudo-labels dominate almost every update before the model is reliable, so the model confidently reinforces its own early mistakes. At γ = 3.0 the threshold is so strict that ADPO queries almost everything and reduces to DPO. So ADPO is *not* a free improvement — it requires γ to be tuned to the noise scale of the problem, and a bad γ is worse than plain DPO.
+
+### Benchmark 2 — real-data pairwise on sklearn digits (64-d pixels)
+
+Pairs of 8×8 handwritten digit images; the preferred image is the one with the larger digit label (0–9). Oracle preference is corrupted by a 20 % label flip. Linear reward head on flattened pixels.
+
+![digits pairwise](benchmarks/bench_digits_pairwise.png)
+
+DPO saturates around 57 % — the 20 % label-flip plus real structured features form a hard ceiling. ADPO continues to ~65 %. Interesting wrinkle: **the no-PL ablation is essentially tied with (or slightly above) ADPO at late k**, unlike on the synthetic BT toy where pseudo-labels clearly helped. On real features, the pseudo-label can reinforce systematic mistakes (e.g. between visually similar digits like 1 vs 7), so the *active-querying* part of ADPO does most of the work and the *pseudo-label* part is roughly break-even. This is another subtle way the paper's story partially breaks outside synthetic Gaussians.
+
+### Benchmark 3 — nonlinear reward, linear student (model misspecification)
+
+True reward is a small MLP of Gaussian features; the DPO/ADPO student is still a linear head. Neither method can reach the Bayes-optimal boundary.
+
+![nonlinear reward](benchmarks/bench_nonlinear_reward.png)
+
+DPO plateaus around 55 %, ADPO reaches ~66 %, no-PL ~64 %. ADPO's pseudo-labels do not collapse the way we feared — even though the linear student is confidently wrong in some regions of feature space, the regions where its margin exceeds γ happen to be ones where a linear approximation is still roughly correct. So **the mechanism is robust to misspecification here**, which is the least-contradicting of the three benchmarks.
+
+### Summary across all four settings
+
+| Benchmark | DPO plateau | ADPO plateau | ADPO beats DPO? |
+|---|---|---|---|
+| Main synthetic BT (k=1500) | ~87 % | ~94 % | yes, ~7 pp |
+| γ sweep, γ = 0.1 | 86 % | **66 %** | **NO — ADPO loses by 20 pp** |
+| γ sweep, γ ∈ [0.6, 1.3] | 86 % | ~91 % | yes |
+| Digits pairwise (real) | ~57 % | ~65 % | yes, but no-PL ties ADPO |
+| Nonlinear reward | ~55 % | ~66 % | yes |
+
+So the paper's mechanism holds in three of the four settings, but only with γ in a narrow band, and on real features the pseudo-label component (as opposed to the active-querying component) is doing much less work than the paper's write-up suggests.
+
 ## Run
 
 ```bash
 python3 ie6520_adpo_replication.py
+python3 benchmarks/benchmark_gamma_sweep.py
+python3 benchmarks/benchmark_digits_pairwise.py
+python3 benchmarks/benchmark_nonlinear_reward.py
 ```
 
-Runs on CPU in ~1 minute. Averaged over 30 seeds.
+Each runs on CPU in 1–2 minutes. The main replication is averaged over 30 seeds; additional benchmarks over 20 seeds.
 
 ## Tuning notes (how we got to this figure)
 
@@ -78,7 +123,8 @@ The first pass used `d = 8`, a noiseless reward scale, and ran both methods for 
 - **Result is sensitive to `reward_scale` and γ.** With a noiseless oracle (`reward_scale = 1.0`) DPO catches up to ADPO; with γ too small, ADPO's pseudo-labels bias the model and it plateaus *below* DPO. The paper's advantage depends on oracle noise being non-trivial and γ being tuned — not a free win.
 - **Early-k regime is flat.** For k < ~20, all three methods overlap, because ADPO has not yet built a confident-margin pool and queries almost everything. The paper's ARC/TruthfulQA panels show the same qualitative behavior.
 - **Linear reward model.** A linear head over Gaussian features is much easier to fit than a 7B LM. We cannot claim anything about optimization dynamics at LLM scale.
-- **Only one γ reported.** We fixed `γ = 1.3` (paper default); no sweep. A proper ablation over γ is left out.
+- **γ sensitivity is real and sharp.** Our γ sweep in `benchmarks/bench_gamma_sweep.png` shows ADPO can be 20 pp *below* DPO when γ is too small. The paper picks γ = 1.3 without showing this failure mode. Anyone re-deploying ADPO needs to sweep γ.
+- **Pseudo-labels help less on real features.** On sklearn digits, the no-PL ablation ties with full ADPO, meaning the *active querying* part of ADPO is doing almost all the work and the pseudo-labels are roughly break-even. The paper reports pseudo-labels as core to the method; we can only confirm that clearly on synthetic Gaussian features.
 
 ## Files
 
@@ -86,10 +132,17 @@ The first pass used `d = 8`, a noiseless reward scale, and ran both methods for 
 .
 ├── README.md
 ├── 2402.09401v2.pdf                       # paper
-├── ie6520_adpo_replication.py             # replication script
+├── ie6520_adpo_replication.py             # main replication script
 ├── adpo_vs_dpo_k60.png                    # short-horizon figure (paper x-axis)
 ├── adpo_vs_dpo_k300.png                   # medium-horizon figure
 ├── adpo_vs_dpo_k1500.png                  # long-horizon figure (DPO saturation)
+├── benchmarks/
+│   ├── benchmark_gamma_sweep.py           # γ sensitivity sweep
+│   ├── benchmark_digits_pairwise.py       # sklearn digits real-data benchmark
+│   ├── benchmark_nonlinear_reward.py      # nonlinear-reward misspecification test
+│   ├── bench_gamma_sweep.png
+│   ├── bench_digits_pairwise.png
+│   └── bench_nonlinear_reward.png
 └── legacy/                                # earlier regret-based exploration
     ├── ie6520_simulation.py
     ├── toy_experiment.png
