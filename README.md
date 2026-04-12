@@ -5,7 +5,8 @@ Replication of **ADPO** (Ji, He, Gu 2024, [arXiv:2402.09401](https://arxiv.org/a
 - Paper: `2402.09401v2.pdf`
 - Paper code (reference): https://github.com/jkx19/ActiveQuery
 - Main script: `ie6520_adpo_replication.py`
-- Figures: `adpo_vs_dpo_k60.png`, `adpo_vs_dpo_k300.png`, `adpo_vs_dpo_k1500.png`
+- Main figures (three horizons): `adpo_vs_dpo_k60.png`, `adpo_vs_dpo_k300.png`, `adpo_vs_dpo_k1500.png`
+- Stress-test figures: `benchmarks/bench_gamma_sweep.png`, `benchmarks/bench_digits_pairwise.png`, `benchmarks/bench_nonlinear_reward.png`
 
 ## ADPO selection rule
 
@@ -22,7 +23,7 @@ We port that rule verbatim. The model's reward margin `s1 - s2` plays the role o
 
 ## Benchmark
 
-Synthetic Bradley–Terry preferences on `d = 16` linear rewards with a noisy oracle (`reward_scale = 0.5`, shrinking the BT logit so preference labels are genuinely uncertain near the decision boundary) — a deliberately different setting from the paper's ARC / TruthfulQA / HellaSwag LLM experiments. We evaluate **held-out pairwise accuracy** on a fixed 3000-pair test set and plot it against the **oracle-query budget** k ∈ [0, 60], matching the x-axis range of the paper's Figure 2.
+Synthetic Bradley–Terry preferences on `d = 16` linear rewards with a noisy oracle (`reward_scale = 0.5`, shrinking the BT logit so preference labels are genuinely uncertain near the decision boundary) — a deliberately different setting from the paper's ARC / TruthfulQA / HellaSwag LLM experiments. We evaluate **held-out pairwise accuracy** on a fixed 3000-pair test set and plot it against the **oracle-query budget** k. The paper's Figure 2 uses k ∈ [0, 60]; we extend to k = 1500 below to show whether DPO ever catches up.
 
 Methods are compared at **equal oracle-query budget**. At budget k, DPO has performed k updates (one per query); ADPO has performed k queried updates *plus* many extra pseudo-label updates, which is why ADPO's curve can keep rising after DPO plateaus.
 
@@ -55,6 +56,14 @@ The gap becomes obvious. DPO plateaus around 86 %, ADPO keeps climbing to ~91 %,
 ![DPO vs ADPO at k=1500](adpo_vs_dpo_k1500.png)
 
 DPO saturates completely at ~87 % — no amount of extra queries moves it, because the oracle labels are noisy and DPO has no mechanism to denoise them. ADPO reaches ~94 %, a persistent ~7 pp gap. This is the clearest confirmation of the paper's mechanism on our benchmark: under a noisy oracle, ADPO's confident pseudo-labels bypass the noise ceiling that DPO hits.
+
+### Tuning notes — how we arrived at the setup above
+
+Our first pass used `d = 8`, a noiseless reward scale, and compared methods at equal *training steps* rather than equal *query budget*. Under that setup DPO and ADPO converged to the same plateau (~94 %) and ADPO's advantage appeared only as a small transient, not matching the paper's visual. Three changes produced the figures above:
+
+1. **Noisier oracle** — scaled `theta_star` by 0.5 so BT preferences are genuinely stochastic near the decision boundary. This is what punishes DPO: it spends every query on a noisy label, while ADPO's confident pseudo-labels are effectively clean.
+2. **Query-budget x-axis** — report accuracy when each method has used exactly k oracle queries, not when they have taken k training steps. At the same k, ADPO has done many more updates than DPO.
+3. **Higher dimension, more seeds** — `d = 16`, 30 seeds — so the plateau gap is statistically clean rather than seed-noise.
 
 ## Additional benchmarks — does the claim hold, and where does it break?
 
@@ -109,22 +118,13 @@ python3 benchmarks/benchmark_nonlinear_reward.py
 
 Each runs on CPU in 1–2 minutes. The main replication is averaged over 30 seeds; additional benchmarks over 20 seeds.
 
-## Tuning notes (how we got to this figure)
-
-The first pass used `d = 8`, a noiseless reward scale, and ran both methods for equal *training steps* rather than equal *query budget*. Under that setup DPO and ADPO converged to the same plateau (~94 %) and ADPO's advantage appeared only as a small transient, which did not match the paper's visual. Three changes produced the figure above:
-
-1. **Noisier oracle** — scaled `theta_star` by 0.5 so BT preferences are genuinely stochastic near the decision boundary. This is what punishes DPO: it spends every query on a noisy label, while ADPO's confident pseudo-labels are effectively clean.
-2. **Query-budget x-axis** — report accuracy when each method has used exactly k oracle queries (k ∈ {0, 2, …, 60}), not when they have taken k training steps. At the same k, ADPO has done many more updates than DPO.
-3. **Higher dimension, more seeds** — `d = 16`, 30 seeds — so the plateau gap is statistically clean rather than seed-noise.
-
 ## Limitations
 
-- **Synthetic benchmark, not LLMs.** We replicate the *algorithmic* claim on a linear BT toy, not the paper's Zephyr-β/Zephyr-gemma experiments. A 7B full-DPO run needs 8× A100 and is outside our budget. The toy confirms the mechanism but does *not* validate the specific MT-Bench / AlpacaEval numbers in the paper.
-- **Result is sensitive to `reward_scale` and γ.** With a noiseless oracle (`reward_scale = 1.0`) DPO catches up to ADPO; with γ too small, ADPO's pseudo-labels bias the model and it plateaus *below* DPO. The paper's advantage depends on oracle noise being non-trivial and γ being tuned — not a free win.
-- **Early-k regime is flat.** For k < ~20, all three methods overlap, because ADPO has not yet built a confident-margin pool and queries almost everything. The paper's ARC/TruthfulQA panels show the same qualitative behavior.
-- **Linear reward model.** A linear head over Gaussian features is much easier to fit than a 7B LM. We cannot claim anything about optimization dynamics at LLM scale.
-- **γ sensitivity is real and sharp.** Our γ sweep in `benchmarks/bench_gamma_sweep.png` shows ADPO can be 20 pp *below* DPO when γ is too small. The paper picks γ = 1.3 without showing this failure mode. Anyone re-deploying ADPO needs to sweep γ.
-- **Pseudo-labels help less on real features.** On sklearn digits, the no-PL ablation ties with full ADPO, meaning the *active querying* part of ADPO is doing almost all the work and the pseudo-labels are roughly break-even. The paper reports pseudo-labels as core to the method; we can only confirm that clearly on synthetic Gaussian features.
+- **Not LLMs.** We replicate the *algorithmic* claim on a linear BT toy plus three stress tests, not the paper's Zephyr-β / Zephyr-gemma experiments. A 7B full-DPO run needs 8× A100 and is outside our budget. Our results confirm the mechanism but do *not* validate the paper's MT-Bench / AlpacaEval numbers.
+- **Requires a noisy oracle.** With a noiseless oracle DPO catches up to ADPO. ADPO's advantage exists because it lets the model denoise the oracle via its own confident predictions. If the oracle is already clean, there is nothing to denoise.
+- **γ is sharp, not a hyperparameter one can set-and-forget.** Our γ sweep (Benchmark 1) shows ADPO can be 20 pp *below* DPO when γ is too small, and reduces to DPO when γ is too large. The paper uses γ = 1.3 without showing this failure mode — anyone re-deploying ADPO needs to sweep γ per task.
+- **Pseudo-labels help less on real features.** On sklearn digits (Benchmark 2) the no-PL ablation ties full ADPO, meaning the *active-querying* component is doing almost all the work. The paper frames pseudo-labels as core to the method; we can only confirm that cleanly on synthetic Gaussian features.
+- **Linear reward model.** A linear head over Gaussian features is much easier to fit than a 7B LM — we cannot claim anything about optimization dynamics at LLM scale.
 
 ## Files
 
