@@ -36,8 +36,8 @@ N_TEST = 3000
 LR = 0.1
 GAMMA = 1.3              # paper default
 REWARD_SCALE = 0.5       # shrinks |r1 - r2| so the BT oracle is noisier
-MAX_STEPS = 4000         # hard cap on per-run training steps
-QUERY_BUDGETS = np.arange(0, 62, 2)   # x-axis: oracle queries k in {0,2,...,60}
+MAX_STEPS = 20000        # hard cap on per-run training steps
+QUERY_BUDGETS = np.arange(0, 305, 5)  # x-axis: oracle queries k in {0,5,...,300}
 
 
 # ====== Environment ======
