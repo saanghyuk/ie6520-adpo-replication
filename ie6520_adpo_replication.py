@@ -36,8 +36,9 @@ N_TEST = 3000
 LR = 0.1
 GAMMA = 1.3              # paper default
 REWARD_SCALE = 0.5       # shrinks |r1 - r2| so the BT oracle is noisier
-MAX_STEPS = 20000        # hard cap on per-run training steps
-QUERY_BUDGETS = np.arange(0, 305, 5)  # x-axis: oracle queries k in {0,5,...,300}
+MAX_STEPS = 100000       # hard cap on per-run training steps
+QUERY_BUDGETS = np.arange(0, 1525, 25)  # x-axis: oracle queries k in {0,25,...,1500}
+OUT_NAME = 'adpo_vs_dpo_k1500.png'
 
 
 # ====== Environment ======
@@ -181,9 +182,8 @@ def main():
   plt.legend(loc='lower right')
   plt.grid(alpha=0.3)
   plt.tight_layout()
-  out = 'adpo_vs_dpo_accuracy_vs_queries.png'
-  plt.savefig(out, dpi=150)
-  print('Saved', out)
+  plt.savefig(OUT_NAME, dpi=150)
+  print('Saved', OUT_NAME)
   plt.show()
 
 

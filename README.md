@@ -5,7 +5,7 @@ Replication of **ADPO** (Ji, He, Gu 2024, [arXiv:2402.09401](https://arxiv.org/a
 - Paper: `2402.09401v2.pdf`
 - Paper code (reference): https://github.com/jkx19/ActiveQuery
 - Main script: `ie6520_adpo_replication.py`
-- Result: `adpo_vs_dpo_accuracy_vs_queries.png`
+- Figures: `adpo_vs_dpo_k60.png`, `adpo_vs_dpo_k300.png`, `adpo_vs_dpo_k1500.png`
 
 ## ADPO selection rule
 
@@ -34,11 +34,27 @@ Methods are compared at **equal oracle-query budget**. At budget k, DPO has perf
 
 `γ = 1.3` matches the paper's default.
 
-## Result
+## Results
 
-![DPO vs ADPO accuracy per query](adpo_vs_dpo_accuracy_vs_queries.png)
+We report three query-budget horizons to make the story honest. The short horizon (k ≤ 60) matches the x-axis in the paper's Figure 2; the longer horizons test whether DPO ever catches up if we just throw more queries at it.
 
-At the same oracle-query budget, **DPO plateaus around 78 %** while **ADPO keeps rising to ~82 %** (k = 60) — a ~4 pp gap consistent with the paper's HellaSwag panel. The pseudo-label ablation (gray) sits between DPO and ADPO, confirming that the pseudo-labels themselves contribute, not only the uncertainty-based filtering. The paper's query-efficiency claim survives transfer to this benchmark.
+### k ≤ 60 (matches the paper's x-axis)
+
+![DPO vs ADPO at k=60](adpo_vs_dpo_k60.png)
+
+At this horizon the three curves are close. DPO reaches ~78 %, ADPO ~82 %, no-PL in between. Early k (< ~20) is flat for all three because ADPO has not yet built a confident-margin pool and ends up querying almost every pair — the same flat-start behavior appears in the paper's ARC panel.
+
+### k ≤ 300 (medium horizon)
+
+![DPO vs ADPO at k=300](adpo_vs_dpo_k300.png)
+
+The gap becomes obvious. DPO plateaus around 86 %, ADPO keeps climbing to ~91 %, no-PL ~89 %. So the advantage is not just a transient in the early-k regime — it persists.
+
+### k ≤ 1500 (long horizon)
+
+![DPO vs ADPO at k=1500](adpo_vs_dpo_k1500.png)
+
+DPO saturates completely at ~87 % — no amount of extra queries moves it, because the oracle labels are noisy and DPO has no mechanism to denoise them. ADPO reaches ~94 %, a persistent ~7 pp gap. This is the clearest confirmation of the paper's mechanism on our benchmark: under a noisy oracle, ADPO's confident pseudo-labels bypass the noise ceiling that DPO hits.
 
 ## Run
 
@@ -71,7 +87,9 @@ The first pass used `d = 8`, a noiseless reward scale, and ran both methods for 
 ├── README.md
 ├── 2402.09401v2.pdf                       # paper
 ├── ie6520_adpo_replication.py             # replication script
-├── adpo_vs_dpo_accuracy_vs_queries.png    # main figure
+├── adpo_vs_dpo_k60.png                    # short-horizon figure (paper x-axis)
+├── adpo_vs_dpo_k300.png                   # medium-horizon figure
+├── adpo_vs_dpo_k1500.png                  # long-horizon figure (DPO saturation)
 └── legacy/                                # earlier regret-based exploration
     ├── ie6520_simulation.py
     ├── toy_experiment.png
