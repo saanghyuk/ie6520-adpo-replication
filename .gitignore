@@ -2,3 +2,26 @@
 __pycache__/
 *.pyc
 .venv/
+
+# Internal / private materials — do NOT publish
+feedback.png
+qiankun.png
+presentation_script.txt
+overleaf1.txt
+
+# Reference copy of paper authors' repo (jkx19/ActiveQuery) — not our work
+ActiveQuery/
+
+# Duplicate bundle assembled for Overleaf upload (sources already tracked in repo root and benchmarks/)
+overleaf_upload/
+
+# LaTeX build artifacts
+*.aux
+*.log
+*.out
+*.toc
+*.synctex.gz
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls

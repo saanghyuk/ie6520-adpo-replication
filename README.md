@@ -4,9 +4,12 @@ Replication of **ADPO** (Ji, He, Gu 2024, [arXiv:2402.09401](https://arxiv.org/a
 
 - Paper: `2402.09401v2.pdf`
 - Paper code (reference): https://github.com/jkx19/ActiveQuery
+- Final report (LaTeX source): `final_report.tex`
+- Class presentation slides: `IE_6520_Final_Project_Presentation.pdf`
 - Main script: `ie6520_adpo_replication.py`
 - Main figures (three horizons): `adpo_vs_dpo_k60.png`, `adpo_vs_dpo_k300.png`, `adpo_vs_dpo_k1500.png`
 - Stress-test figures: `benchmarks/bench_gamma_sweep.png`, `benchmarks/bench_digits_pairwise.png`, `benchmarks/bench_nonlinear_reward.png`
+- Mechanism figures: `benchmarks/bench_query_rate.png`, `benchmarks/bench_cumulative_regret.png`, `benchmarks/bench_adaptive_gamma.png`
 
 ## ADPO selection rule
 
@@ -85,7 +88,7 @@ Pairs of 8×8 handwritten digit images; the preferred image is the one with the 
 
 ![digits pairwise](benchmarks/bench_digits_pairwise.png)
 
-DPO saturates around 57 % — the 20 % label-flip plus real structured features form a hard ceiling. ADPO continues to ~65 %. Interesting wrinkle: **the no-PL ablation is essentially tied with (or slightly above) ADPO at late k**, unlike on the synthetic BT toy where pseudo-labels clearly helped. On real features, the pseudo-label can reinforce systematic mistakes (e.g. between visually similar digits like 1 vs 7), so the *active-querying* part of ADPO does most of the work and the *pseudo-label* part is roughly break-even. This is another subtle way the paper's story partially breaks outside synthetic Gaussians.
+DPO saturates around 57 % — the 20 % label-flip plus real structured features form a hard ceiling. ADPO continues to ~65 %. Interesting wrinkle: **the no-PL ablation is roughly tied with (or slightly above) ADPO at late k**, unlike on the synthetic BT toy where pseudo-labels clearly helped. On real features, the pseudo-label can reinforce systematic mistakes (e.g. between visually similar digits like 1 vs 7), so the *active-querying* part of ADPO does most of the work and the *pseudo-label* part is roughly break-even. This is another subtle way the paper's story partially breaks outside synthetic Gaussians.
 
 ### Benchmark 3 — nonlinear reward, linear student (model misspecification)
 
@@ -93,9 +96,37 @@ True reward is a small MLP of Gaussian features; the DPO/ADPO student is still a
 
 ![nonlinear reward](benchmarks/bench_nonlinear_reward.png)
 
-DPO plateaus around 55 %, ADPO reaches ~66 %, no-PL ~64 %. ADPO's pseudo-labels do not collapse the way we feared — even though the linear student is confidently wrong in some regions of feature space, the regions where its margin exceeds γ happen to be ones where a linear approximation is still roughly correct. So **the mechanism is robust to misspecification here**, which is the least-contradicting of the three benchmarks.
+DPO plateaus around 55 %, ADPO reaches ~66 %, no-PL ~64 %. ADPO's pseudo-labels do not collapse the way we feared — even though the linear student is confidently wrong in some regions of feature space, the regions where its margin exceeds γ happen to be ones where a linear approximation is still roughly correct. So **the mechanism survives misspecification here**, which is the least-contradicting of the three benchmarks.
 
-### Summary across all four settings
+## Looking inside the algorithm
+
+The accuracy curves above tell us *whether* ADPO wins. The three figures below tell us *why*, and answer Prof. Wang Chi's question of how to set the threshold without knowing Δ in advance.
+
+### Benchmark 4 — query rate over training
+
+How often does ADPO actually call the oracle as training proceeds? Theorem 5.1 predicts a query budget that is independent of T, which should show up as a query rate that decays from ~100 % (burn-in) to a small steady-state value.
+
+![query rate](benchmarks/bench_query_rate.png)
+
+The rate drops from ~45 % in the first 100-step window to a steady state around 11 %. Cumulatively, ADPO queries on only ~14 % of pairs over 3,000 training steps — a 7× reduction relative to DPO, on this benchmark, with no accuracy penalty (in fact a +5 pp gain).
+
+### Benchmark 5 — cumulative regret
+
+The Theorem 5.1 claim is that the cumulative regret is constant in T. We can't test that literally on continuous Gaussian features (Δ is zero in the limit), but we can test the *shape*: ADPO's cumulative regret should grow at a much shallower slope than DPO's.
+
+![cumulative regret](benchmarks/bench_cumulative_regret.png)
+
+DPO settles to a per-step regret of ~0.10, ADPO ~0.04 — so DPO's cumulative regret grows roughly 2.5× faster than ADPO's at steady state. This is the picture the constant-regret theorem is gesturing at, modulo the gap-zero caveat.
+
+### Benchmark 6 — self-tuning γ via running quantile of |margin|
+
+Addresses the prof's feedback in code: replace the hand-tuned γ with γ_t = max(γ_min, median(|margin| over the last K steps)), with γ_min = 0.5 and K = 200. No knowledge of Δ required.
+
+![adaptive gamma](benchmarks/bench_adaptive_gamma.png)
+
+The adaptive rule sits between fixed γ = 1.3 (paper default, 91 %) and the DPO baseline (86 %), at ~88.5 % at k = 300. It never enters the γ = 0.1 disaster regime (67 %), because the median of recent absolute margins is large at initialization (margins are noisy) and shrinks only once the model produces confident predictions on most pairs. So we trade ~2.5 pp of headroom for a threshold that does not need per-task tuning.
+
+### Summary across all six settings
 
 | Benchmark | DPO plateau | ADPO plateau | ADPO beats DPO? |
 |---|---|---|---|
@@ -104,8 +135,9 @@ DPO plateaus around 55 %, ADPO reaches ~66 %, no-PL ~64 %. ADPO's pseudo-labels 
 | γ sweep, γ ∈ [0.6, 1.3] | 86 % | ~91 % | yes |
 | Digits pairwise (real) | ~57 % | ~65 % | yes, but no-PL ties ADPO |
 | Nonlinear reward | ~55 % | ~66 % | yes |
+| Adaptive γ (k = 300) | ~86 % | ~88.5 % | yes, ~2.5 pp, no Δ knowledge needed |
 
-So the paper's mechanism holds in three of the four settings, but only with γ in a narrow band, and on real features the pseudo-label component (as opposed to the active-querying component) is doing much less work than the paper's write-up suggests.
+The mechanism holds in five of six settings. The one failure is the γ = 0.1 regime, which the adaptive rule sidesteps. On real features the pseudo-label part of ADPO does less work than the paper claims.
 
 ## Run
 
@@ -114,9 +146,12 @@ python3 ie6520_adpo_replication.py
 python3 benchmarks/benchmark_gamma_sweep.py
 python3 benchmarks/benchmark_digits_pairwise.py
 python3 benchmarks/benchmark_nonlinear_reward.py
+python3 benchmarks/benchmark_query_rate.py
+python3 benchmarks/benchmark_cumulative_regret.py
+python3 benchmarks/benchmark_adaptive_gamma.py
 ```
 
-Each runs on CPU in 1–2 minutes. The main replication is averaged over 30 seeds; additional benchmarks over 20 seeds.
+Each runs on CPU in 1–3 minutes. The main replication is averaged over 30 seeds; additional benchmarks over 20 seeds.
 
 ## Limitations
 
@@ -131,19 +166,27 @@ Each runs on CPU in 1–2 minutes. The main replication is averaged over 30 seed
 ```
 .
 ├── README.md
-├── 2402.09401v2.pdf                       # paper
-├── ie6520_adpo_replication.py             # main replication script
-├── adpo_vs_dpo_k60.png                    # short-horizon figure (paper x-axis)
-├── adpo_vs_dpo_k300.png                   # medium-horizon figure
-├── adpo_vs_dpo_k1500.png                  # long-horizon figure (DPO saturation)
+├── 2402.09401v2.pdf                          # paper
+├── final_report.tex                          # final report LaTeX source
+├── IE_6520_Final_Project_Presentation.pdf    # class presentation slides
+├── ie6520_adpo_replication.py                # main replication script
+├── adpo_vs_dpo_k60.png                       # short-horizon figure (paper x-axis)
+├── adpo_vs_dpo_k300.png                      # medium-horizon figure
+├── adpo_vs_dpo_k1500.png                     # long-horizon figure (DPO saturation)
 ├── benchmarks/
-│   ├── benchmark_gamma_sweep.py           # γ sensitivity sweep
-│   ├── benchmark_digits_pairwise.py       # sklearn digits real-data benchmark
-│   ├── benchmark_nonlinear_reward.py      # nonlinear-reward misspecification test
+│   ├── benchmark_gamma_sweep.py              # γ sensitivity sweep
+│   ├── benchmark_digits_pairwise.py          # sklearn digits real-data benchmark
+│   ├── benchmark_nonlinear_reward.py         # nonlinear-reward misspecification test
+│   ├── benchmark_query_rate.py               # rolling query rate over training
+│   ├── benchmark_cumulative_regret.py        # cumulative-regret comparison
+│   ├── benchmark_adaptive_gamma.py           # self-tuning γ via running quantile
 │   ├── bench_gamma_sweep.png
 │   ├── bench_digits_pairwise.png
-│   └── bench_nonlinear_reward.png
-└── legacy/                                # earlier regret-based exploration
+│   ├── bench_nonlinear_reward.png
+│   ├── bench_query_rate.png
+│   ├── bench_cumulative_regret.png
+│   └── bench_adaptive_gamma.png
+└── legacy/                                   # earlier regret-based exploration
     ├── ie6520_simulation.py
     ├── toy_experiment.png
     └── mini_dpo.png
