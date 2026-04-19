@@ -11,12 +11,15 @@ This tests whether the paper's mechanism generalizes beyond synthetic
 Gaussian features to a real, structured feature distribution.
 """
 
+import os
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import matplotlib.pyplot as plt
 from sklearn.datasets import load_digits
+
+OUT = os.path.join(os.path.dirname(__file__), 'bench_digits_pairwise.png')
 
 N_SEEDS = 20
 LR = 0.05
@@ -149,7 +152,7 @@ def main():
   plt.title('sklearn digits pairwise (which digit is larger)\n'
             'flip-noise=%.0f%%, %d seeds, γ=%.1f' % (FLIP_NOISE * 100, N_SEEDS, GAMMA))
   plt.legend(loc='lower right'); plt.grid(alpha=0.3); plt.tight_layout()
-  plt.savefig('bench_digits_pairwise.png', dpi=150)
+  plt.savefig(OUT, dpi=150)
   print('Saved bench_digits_pairwise.png')
 
 

@@ -12,10 +12,13 @@ threshold check fails on most pairs, and the query rate drops.
 Output: bench_query_rate.png
 """
 
+import os
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+
+OUT = os.path.join(os.path.dirname(__file__), 'bench_query_rate.png')
 import matplotlib.pyplot as plt
 
 D = 16
@@ -100,7 +103,7 @@ def main():
   plt.legend(loc='center right')
   plt.grid(alpha=0.3)
   plt.tight_layout()
-  plt.savefig('bench_query_rate.png', dpi=150)
+  plt.savefig(OUT, dpi=150)
   print('Saved bench_query_rate.png')
   cum_q = rates.mean(0).cumsum() / np.arange(1, len(mean) + 1)
   print(f'Cumulative query fraction at end: {cum_q[-1] * 100:.1f}%')

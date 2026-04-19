@@ -17,11 +17,14 @@ Cumulative regret is the sum over t.
 Output: bench_cumulative_regret.png
 """
 
+import os
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import matplotlib.pyplot as plt
+
+OUT = os.path.join(os.path.dirname(__file__), 'bench_cumulative_regret.png')
 
 D = 16
 N_SEEDS = 20
@@ -130,7 +133,7 @@ def main():
   fig.suptitle(f'Regret comparison: $d={D}$, BT noise scale {REWARD_SCALE}, '
                f'{N_SEEDS} seeds', y=1.02)
   fig.tight_layout()
-  fig.savefig('bench_cumulative_regret.png', dpi=150, bbox_inches='tight')
+  fig.savefig(OUT, dpi=150, bbox_inches='tight')
   print('Saved bench_cumulative_regret.png')
 
 

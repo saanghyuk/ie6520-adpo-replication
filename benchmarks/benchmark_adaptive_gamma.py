@@ -18,10 +18,13 @@ regime gamma = 0.1, and DPO.
 Output: bench_adaptive_gamma.png
 """
 
+import os
 from collections import deque
 
 import numpy as np
 import torch
+
+OUT = os.path.join(os.path.dirname(__file__), 'bench_adaptive_gamma.png')
 import torch.nn as nn
 import torch.optim as optim
 import matplotlib.pyplot as plt
@@ -166,7 +169,7 @@ def main():
   plt.legend(loc='lower right', fontsize=9)
   plt.grid(alpha=0.3)
   plt.tight_layout()
-  plt.savefig('bench_adaptive_gamma.png', dpi=150)
+  plt.savefig(OUT, dpi=150)
   print('Saved bench_adaptive_gamma.png')
 
 

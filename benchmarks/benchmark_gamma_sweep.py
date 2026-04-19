@@ -8,15 +8,18 @@ If γ is too small, pseudo-labels dominate the loss before the model is
 reliable, and ADPO ends up *below* DPO -- a contradicting regime.
 
 For each γ we run the same BT setup as the main replication (d=16, noisy
-oracle, 30 seeds), measure test accuracy at query budget k = 300, and
+oracle, 20 seeds), measure test accuracy at query budget k = 300, and
 compare to DPO (which does not depend on γ).
 """
 
+import os
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import matplotlib.pyplot as plt
+
+OUT = os.path.join(os.path.dirname(__file__), 'bench_gamma_sweep.png')
 
 D = 16
 N_SEEDS = 20
@@ -119,7 +122,7 @@ def main():
   plt.legend()
   plt.grid(alpha=0.3)
   plt.tight_layout()
-  plt.savefig('bench_gamma_sweep.png', dpi=150)
+  plt.savefig(OUT, dpi=150)
   print('Saved bench_gamma_sweep.png')
   print('DPO:', dpo_acc)
   for g, a in adpo_by_gamma.items():

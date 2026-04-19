@@ -15,11 +15,14 @@ it's a contradicting regime -- the advantage was depending on model
 specification being right.
 """
 
+import os
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import matplotlib.pyplot as plt
+
+OUT = os.path.join(os.path.dirname(__file__), 'bench_nonlinear_reward.png')
 
 D = 16
 HIDDEN = 32
@@ -152,7 +155,7 @@ def main():
   plt.title('Nonlinear reward, linear student (misspecified)\n'
             '%d seeds, γ=%.1f' % (N_SEEDS, GAMMA))
   plt.legend(loc='lower right'); plt.grid(alpha=0.3); plt.tight_layout()
-  plt.savefig('bench_nonlinear_reward.png', dpi=150)
+  plt.savefig(OUT, dpi=150)
   print('Saved bench_nonlinear_reward.png')
 
 

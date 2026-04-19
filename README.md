@@ -139,7 +139,17 @@ The adaptive rule sits between fixed γ = 1.3 (paper default, 91 %) and the DPO 
 
 The mechanism holds in five of six settings. The one failure is the γ = 0.1 regime, which the adaptive rule sidesteps. On real features the pseudo-label part of ADPO does less work than the paper claims.
 
+## Setup
+
+```bash
+pip install -r requirements.txt
+```
+
+Pulls `numpy`, `torch`, `matplotlib`, `scikit-learn` (the digits benchmark needs the last one). All scripts are CPU-only — no GPU required.
+
 ## Run
+
+From the repo root:
 
 ```bash
 python3 ie6520_adpo_replication.py
@@ -151,7 +161,7 @@ python3 benchmarks/benchmark_cumulative_regret.py
 python3 benchmarks/benchmark_adaptive_gamma.py
 ```
 
-Each runs on CPU in 1–3 minutes. The main replication is averaged over 30 seeds; additional benchmarks over 20 seeds.
+Each runs on CPU in 1–3 minutes. The main replication is averaged over 30 seeds; additional benchmarks over 20 seeds. Each benchmark script writes its PNG into `benchmarks/` regardless of the working directory.
 
 ## Limitations
 
@@ -169,6 +179,7 @@ Each runs on CPU in 1–3 minutes. The main replication is averaged over 30 seed
 ├── 2402.09401v2.pdf                          # paper
 ├── final_report.tex                          # final report LaTeX source
 ├── IE_6520_Final_Project_Presentation.pdf    # class presentation slides
+├── requirements.txt                          # numpy / torch / matplotlib / scikit-learn
 ├── ie6520_adpo_replication.py                # main replication script
 ├── adpo_vs_dpo_k60.png                       # short-horizon figure (paper x-axis)
 ├── adpo_vs_dpo_k300.png                      # medium-horizon figure
